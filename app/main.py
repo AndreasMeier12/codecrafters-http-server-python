@@ -1,4 +1,5 @@
 import socket  # noqa: F401
+import threading
 from dataclasses import dataclass
 import re
 
@@ -35,9 +36,9 @@ def parse_http_request(data: bytes):
         components = thingy.split(": ")
         if components[0]:
             more_parts_dict[components[0]] = components[1]
-    return HttpRequest(method, path, protocol, more_parts_dict['Host'], more_parts_dict.get('User-Agent', None), more_parts_dict.get('Accept', None))
+    return HttpRequest(method, path, protocol, more_parts_dict.get('HOST', None), more_parts_dict.get('User-Agent', None), more_parts_dict.get('Accept', None))
 
-def handle_request(request_data: HttpRequest ) -> bytes:
+def handle_request_content(request_data: HttpRequest ) -> bytes:
     if request_data.path == '/':
         return b"HTTP/1.1 200 OK\r\n\r\n"
     if request_data.path.startswith("/echo/"):
@@ -48,7 +49,10 @@ def handle_request(request_data: HttpRequest ) -> bytes:
 
     return b"HTTP/1.1 404 Not Found\r\n\r\n"
 
-
+def handle_request(conn: socket):
+    data = conn.recv(1024)
+    request_data = parse_http_request(data)
+    conn.sendall(handle_request_content(request_data))
 
 
 def main():
@@ -57,12 +61,12 @@ def main():
 
     # Uncomment this to pass the first stage
     #
+    server_socket = socket.create_server(("localhost", 4221), reuse_port=True)
+
     while True:
-        server_socket = socket.create_server(("localhost", 4221), reuse_port=True)
         conn, addr = server_socket.accept()
-        data = conn.recv(1024)
-        request_data = parse_http_request(data)
-        conn.sendall(handle_request(request_data))
+        threading.Thread(target=handle_request, args=(conn,)).start()
+
 
 
 

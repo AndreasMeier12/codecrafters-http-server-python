@@ -23,15 +23,24 @@ class HttpRequest:
     host: str
     user_agent: str
     accept: str
+    body: str
 
 
 def handle_file(request_data: HttpRequest, server_args: ServerArguments) -> bytes:
     file_name = request_data.path.replace("/files/", server_args.file_dir)
-    if not os.path.isfile(file_name):
-        return HTTP___NOT_FOUND_
-    size = os.path.getsize(file_name)
-    with open(file_name, 'rb') as file:
-        return f"HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: {size}\r\n\r\n".encode(ENCODING) + file.read()
+
+    if request_data.method == 'GET':
+        if not os.path.isfile(file_name):
+            return HTTP___NOT_FOUND_
+        size = os.path.getsize(file_name)
+        with open(file_name, 'rb') as file:
+            return f"HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: {size}\r\n\r\n".encode(ENCODING) + file.read()
+    if request_data.method == 'POST':
+        with open(file_name, 'wb') as file:
+            file.write(request_data.body.encode(ENCODING))
+        return "HTTP/1.1 201 Created\r\n\r\n".encode(ENCODING)
+
+
 
 
 def handle_echo(request_data: HttpRequest) -> bytes:
@@ -49,11 +58,14 @@ def parse_http_request(data: bytes):
     protocol = parts[2].split("\r\n")[0]
     more_parts = data.decode(ENCODING).split("\r\n")[1:]
     more_parts_dict = {}
+    body = None
     for thingy in more_parts:
         components = thingy.split(": ")
-        if components[0]:
+        if ": " in thingy:
             more_parts_dict[components[0]] = components[1]
-    return HttpRequest(method, path, protocol, more_parts_dict.get('HOST', None), more_parts_dict.get('User-Agent', None), more_parts_dict.get('Accept', None))
+        else:
+            body = components[0]
+    return HttpRequest(method, path, protocol, more_parts_dict.get('HOST', None), more_parts_dict.get('User-Agent', None), more_parts_dict.get('Accept', None), body)
 
 def handle_request_content(request_data: HttpRequest, server_args: ServerArguments ) -> bytes:
     if request_data.path == '/':

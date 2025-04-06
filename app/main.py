@@ -73,7 +73,9 @@ def format_http_response(response: HttpResponse) -> bytes:
 
 
 def handle_compression(request: HttpRequest, response: HttpResponse):
-    if request.accept_encoding == 'gzip':
+    if not request.accept_encoding:
+        return
+    if 'gzip' in request.accept_encoding.split(", "):
         response.headers['Content-Encoding'] = 'gzip'
 
 

@@ -5,7 +5,7 @@ from dataclasses import dataclass
 import re
 import argparse
 from typing import Optional
-
+import gzip
 HTTP___NOT_FOUND_ = "HTTP/1.1 404 Not Found"
 
 ENCODING = 'utf-8'
@@ -76,6 +76,9 @@ def handle_compression(request: HttpRequest, response: HttpResponse):
     if not request.accept_encoding:
         return
     if 'gzip' in request.accept_encoding.split(", "):
+        temp_data = gzip.compress(response.body)
+        response.headers['Content-Length'] = str(len(temp_data))
+        response.body = temp_data
         response.headers['Content-Encoding'] = 'gzip'
 
 

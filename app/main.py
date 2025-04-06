@@ -1,6 +1,8 @@
 import socket  # noqa: F401
 from dataclasses import dataclass
+import re
 
+ENCODING = 'utf-8'
 
 
 @dataclass
@@ -14,12 +16,16 @@ class HttpRequest:
     accept: str
 
 
+def handle_echo(request_data: HttpRequest) -> bytes:
+    arg = re.sub("^/echo/", "", request_data.path)
+    return f"HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {len(arg)}\r\n\r\n{arg}".encode(ENCODING)
+
 def parse_http_request(data: bytes):
-    parts = data.decode("utf-8").split(' ')
+    parts = data.decode(ENCODING).split(' ')
     method = parts[0]
     path = parts[1]
     protocol = parts[2].split("\r\n")[0]
-    more_parts = data.decode("utf-8").split("\r\n")[1:]
+    more_parts = data.decode(ENCODING).split("\r\n")[1:]
     more_parts_dict = {}
     for thingy in more_parts:
         components = thingy.split(": ")
@@ -30,6 +36,10 @@ def parse_http_request(data: bytes):
 def handle_request(request_data: HttpRequest ) -> bytes:
     if request_data.path == '/':
         return b"HTTP/1.1 200 OK\r\n\r\n"
+    if request_data.path.startswith("/echo/"):
+        return handle_echo(request_data)
+
+
     return b"HTTP/1.1 404 Not Found\r\n\r\n"
 
 

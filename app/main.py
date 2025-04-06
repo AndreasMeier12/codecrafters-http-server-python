@@ -1,5 +1,36 @@
 import socket  # noqa: F401
+from dataclasses import dataclass
 
+
+
+@dataclass
+class HttpRequest:
+    method: str
+    path: str
+    protocol: str
+    host: str
+    host: str
+    user_agent: str
+    accept: str
+
+
+def parse_http_request(data: bytes):
+    parts = data.decode("utf-8").split(' ')
+    method = parts[0]
+    path = parts[1]
+    protocol = parts[2].split("\r\n")[0]
+    more_parts = data.decode("utf-8").split("\r\n")[1:]
+    more_parts_dict = {}
+    for thingy in more_parts:
+        components = thingy.split(": ")
+        if components[0]:
+            more_parts_dict[components[0]] = components[1]
+    return HttpRequest(method, path, protocol, more_parts_dict['Host'], more_parts_dict.get('User-Agent', None), more_parts_dict.get('Accept', None))
+
+def handle_request(request_data: HttpRequest ) -> bytes:
+    if request_data.path == '/':
+        return b"HTTP/1.1 200 OK\r\n\r\n"
+    return b"HTTP/1.1 404 Not Found\r\n\r\n"
 
 
 
@@ -10,8 +41,13 @@ def main():
 
     # Uncomment this to pass the first stage
     #
-    server_socket = socket.create_server(("localhost", 4221), reuse_port=True)
-    server_socket.accept()[0].sendall(b"HTTP/1.1 200 OK\r\n\r\n")
+    while True:
+        server_socket = socket.create_server(("localhost", 4221), reuse_port=True)
+        conn, addr = server_socket.accept()
+        data = conn.recv(1024)
+        request_data = parse_http_request(data)
+        conn.sendall(handle_request(request_data))
+
 
 
 

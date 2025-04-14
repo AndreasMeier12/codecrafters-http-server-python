@@ -32,6 +32,7 @@ class HttpRequest:
     accept: str
     body: str
     accept_encoding: Optional[str]
+    close: bool
 
 
 def handle_file(request_data: HttpRequest, server_args: ServerArguments) -> HttpResponse:
@@ -96,7 +97,8 @@ def parse_http_request(data: bytes):
             more_parts_dict[components[0]] = components[1]
         else:
             body = components[0]
-    return HttpRequest(method, path, protocol, more_parts_dict.get('HOST', None), more_parts_dict.get('User-Agent', None), more_parts_dict.get('Accept', None), body, more_parts_dict.get("Accept-Encoding", None))
+    close = True if more_parts_dict.get("Connection", "aaaaaa") == 'close' else False
+    return HttpRequest(method, path, protocol, more_parts_dict.get('HOST', None), more_parts_dict.get('User-Agent', None), more_parts_dict.get('Accept', None), body, more_parts_dict.get("Accept-Encoding", None), close)
 
 def handle_request_content(request_data: HttpRequest, server_args: ServerArguments ) -> HttpResponse:
     if request_data.path == '/':
@@ -112,12 +114,15 @@ def handle_request_content(request_data: HttpRequest, server_args: ServerArgumen
     return HttpResponse(HTTP___NOT_FOUND_, {}, None)
 
 def handle_request(conn: socket, server_args: ServerArguments):
-    data = conn.recv(1024)
-    request_data = parse_http_request(data)
-    temp = handle_request_content(request_data, server_args)
-    handle_compression(request_data, temp)
+    close = False
+    while not close:
+        data = conn.recv(1024)
+        request_data = parse_http_request(data)
+        temp = handle_request_content(request_data, server_args)
+        handle_compression(request_data, temp)
+        close = request_data.close
 
-    conn.sendall(format_http_response(temp))
+        conn.sendall(format_http_response(temp))
 
 
 def main():

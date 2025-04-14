@@ -113,7 +113,7 @@ def handle_request_content(request_data: HttpRequest, server_args: ServerArgumen
 
     return HttpResponse(HTTP___NOT_FOUND_, {}, None)
 
-def handle_request(conn: socket, server_args: ServerArguments):
+def handle_request(conn: socket.socket, server_args: ServerArguments):
     close = False
     while not close:
         data = conn.recv(1024)
@@ -121,8 +121,12 @@ def handle_request(conn: socket, server_args: ServerArguments):
         temp = handle_request_content(request_data, server_args)
         handle_compression(request_data, temp)
         close = request_data.close
+        if close:
+            temp.headers["Connection"] = "close"
 
         conn.sendall(format_http_response(temp))
+        if close:
+            conn.close()
 
 
 def main():
